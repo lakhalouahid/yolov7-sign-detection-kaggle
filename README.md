@@ -219,6 +219,6 @@ loss_ota: 1 # use ComputeLossOTA, use 0 for faster training
 ![](runs/detect/yolo_sign_detection/00078.png)
 ![](runs/detect/yolo_sign_detection/00154.png)
 ![](runs/detect/yolo_sign_detection/00157.png)
-![](runs/detect/yolo_sign_detection/00157.png)
+![](runs/detect/yolo_sign_detection/00208.png)
 ![](runs/detect/yolo_sign_detection/00193.png)
 ![](runs/detect/yolo_sign_detection/00198.png)
