@@ -198,12 +198,27 @@ loss_ota: 1 # use ComputeLossOTA, use 0 for faster training
 ![mAP 0.5:0.95](./mAP_0.5:0.95.png)
 
 ### Box loss
-![Box loss](./box_loss.png
+![Box loss](./box_loss.png)
 
 
 ### Cls loss
-![Cls loss](./cls_loss.png
+![Cls loss](./cls_loss.png)
 
 
 ### Obj loss
-![Obj loss](./obj_loss.png
+![Obj loss](./obj_loss.png)
+
+
+## Results
+
+
+![](runs/detect/yolo_sign_detection/00037.png)
+![](runs/detect/yolo_sign_detection/00061.png)
+![](runs/detect/yolo_sign_detection/00073.png)
+![](runs/detect/yolo_sign_detection/00075.png)
+![](runs/detect/yolo_sign_detection/00078.png)
+![](runs/detect/yolo_sign_detection/00154.png)
+![](runs/detect/yolo_sign_detection/00157.png)
+![](runs/detect/yolo_sign_detection/00157.png)
+![](runs/detect/yolo_sign_detection/00193.png)
+![](runs/detect/yolo_sign_detection/00198.png)
