@@ -1,259 +1,209 @@
-# Official YOLOv7
+# Sign detection using dataset GTSDB
 
-Implementation of paper - [YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/abs/2207.02696)
+## Dataset German Traffic Sign Detection Benchmark
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/yolov7-trainable-bag-of-freebies-sets-new/real-time-object-detection-on-coco)](https://paperswithcode.com/sota/real-time-object-detection-on-coco?p=yolov7-trainable-bag-of-freebies-sets-new)
-[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/akhaliq/yolov7)
-<a href="https://colab.research.google.com/gist/AlexeyAB/b769f5795e65fdab80086f6cb7940dae/yolov7detection.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
-[![arxiv.org](http://img.shields.io/badge/cs.CV-arXiv%3A2207.02696-B31B1B.svg)](https://arxiv.org/abs/2207.02696)
+![SignDetectionDataset](./SignDetection.png "Sign Detection Dataset")
 
-<div align="center">
-    <a href="./">
-        <img src="./figure/performance.png" width="79%"/>
-    </a>
-</div>
+[GTSDB - German Traffic Sign Detection Benchmark - Kaggle](https://www.kaggle.com/datasets/safabouguezzi/german-traffic-sign-detection-benchmark-gtsdb)
 
-## Web Demo
+## Dataset distribution
 
-- Integrated into [Huggingface Spaces 🤗](https://huggingface.co/spaces/akhaliq/yolov7) using Gradio. Try out the Web Demo [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/akhaliq/yolov7)
+According to classes' distribution, the dataset is **not balanced**
 
-## Performance 
+![DatasetClassesDistribution](./dataset_distribution.png "Dataset Classes Distribution")
 
-MS COCO
 
-| Model | Test Size | AP<sup>test</sup> | AP<sub>50</sub><sup>test</sup> | AP<sub>75</sub><sup>test</sup> | batch 1 fps | batch 32 average time |
-| :-- | :-: | :-: | :-: | :-: | :-: | :-: |
-| [**YOLOv7**](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7.pt) | 640 | **51.4%** | **69.7%** | **55.9%** | 161 *fps* | 2.8 *ms* |
-| [**YOLOv7-X**](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7x.pt) | 640 | **53.1%** | **71.2%** | **57.8%** | 114 *fps* | 4.3 *ms* |
-|  |  |  |  |  |  |  |
-| [**YOLOv7-W6**](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-w6.pt) | 1280 | **54.9%** | **72.6%** | **60.1%** | 84 *fps* | 7.6 *ms* |
-| [**YOLOv7-E6**](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6.pt) | 1280 | **56.0%** | **73.5%** | **61.2%** | 56 *fps* | 12.3 *ms* |
-| [**YOLOv7-D6**](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-d6.pt) | 1280 | **56.6%** | **74.0%** | **61.8%** | 44 *fps* | 15.0 *ms* |
-| [**YOLOv7-E6E**](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6e.pt) | 1280 | **56.8%** | **74.4%** | **62.1%** | 36 *fps* | 18.7 *ms* |
+## Define the net
 
-## Installation
+```yaml
+# parameters
+nc: 80  # number of classes
+depth_multiple: 1.0  # model depth multiple
+width_multiple: 1.0  # layer channel multiple
 
-Docker environment (recommended)
-<details><summary> <b>Expand</b> </summary>
+# anchors
+anchors:
+  - [10,13, 16,30, 33,23]  # P3/8
+  - [30,61, 62,45, 59,119]  # P4/16
+  - [116,90, 156,198, 373,326]  # P5/32
 
-``` shell
-# create the docker container, you can change the share memory size if you have more.
-nvidia-docker run --name yolov7 -it -v your_coco_path/:/coco/ -v your_code_path/:/yolov7 --shm-size=64g nvcr.io/nvidia/pytorch:21.08-py3
+# yolov7-tiny backbone
+backbone:
+  # [from, number, module, args] c2, k=1, s=1, p=None, g=1, act=True
+  [[-1, 1, Conv, [32, 3, 2, None, 1, nn.LeakyReLU(0.1)]],  # 0-P1/2  
+  
+   [-1, 1, Conv, [64, 3, 2, None, 1, nn.LeakyReLU(0.1)]],  # 1-P2/4    
+   
+   [-1, 1, Conv, [32, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [32, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [32, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [32, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 7
+   
+   [-1, 1, MP, []],  # 8-P3/8
+   [-1, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [64, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [64, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 14
+   
+   [-1, 1, MP, []],  # 15-P4/16
+   [-1, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [128, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [128, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 21
+   
+   [-1, 1, MP, []],  # 22-P5/32
+   [-1, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [256, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [256, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [512, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 28
+  ]
 
-# apt install required packages
-apt update
-apt install -y zip htop screen libgl1-mesa-glx
+# yolov7-tiny head
+head:
+  [[-1, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, SP, [5]],
+   [-2, 1, SP, [9]],
+   [-3, 1, SP, [13]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -7], 1, Concat, [1]],
+   [-1, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 37
+  
+   [-1, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [21, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]], # route backbone P4
+   [[-1, -2], 1, Concat, [1]],
+   
+   [-1, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [64, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [64, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 47
+  
+   [-1, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [14, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]], # route backbone P3
+   [[-1, -2], 1, Concat, [1]],
+   
+   [-1, 1, Conv, [32, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [32, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [32, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [32, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 57
+   
+   [-1, 1, Conv, [128, 3, 2, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, 47], 1, Concat, [1]],
+   
+   [-1, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [64, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [64, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [64, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 65
+   
+   [-1, 1, Conv, [256, 3, 2, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, 37], 1, Concat, [1]],
+   
+   [-1, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-2, 1, Conv, [128, 1, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [128, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [-1, 1, Conv, [128, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [[-1, -2, -3, -4], 1, Concat, [1]],
+   [-1, 1, Conv, [256, 1, 1, None, 1, nn.LeakyReLU(0.1)]],  # 73
+      
+   [57, 1, Conv, [128, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [65, 1, Conv, [256, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
+   [73, 1, Conv, [512, 3, 1, None, 1, nn.LeakyReLU(0.1)]],
 
-# pip install required packages
-pip install seaborn thop
-
-# go to code folder
-cd /yolov7
+   [[74,75,76], 1, Detect, [nc, anchors]],   # Detect(P3, P4, P5)
+  ]
 ```
-
-</details>
-
-## Testing
-
-[`yolov7.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7.pt) [`yolov7x.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7x.pt) [`yolov7-w6.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-w6.pt) [`yolov7-e6.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6.pt) [`yolov7-d6.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-d6.pt) [`yolov7-e6e.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6e.pt)
-
-``` shell
-python test.py --data data/coco.yaml --img 640 --batch 32 --conf 0.001 --iou 0.65 --device 0 --weights yolov7.pt --name yolov7_640_val
-```
-
-You will get the results:
-
-```
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.51206
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.69730
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.55521
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.35247
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.55937
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.66693
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.38453
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.63765
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.68772
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.53766
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.73549
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.83868
-```
-
-To measure accuracy, download [COCO-annotations for Pycocotools](http://images.cocodataset.org/annotations/annotations_trainval2017.zip) to the `./coco/annotations/instances_val2017.json`
 
 ## Training
 
-Data preparation
+Configure the train, test and validation dataset after preparing the data
 
-``` shell
-bash scripts/get_coco.sh
-```
+```yaml
+train: ./GermanTrafficSignDetectionDataset/images/train
+test: ./GermanTrafficSignDetectionDataset/images/test
+val: ./GermanTrafficSignDetectionDataset/images/val
 
-* Download MS COCO dataset images ([train](http://images.cocodataset.org/zips/train2017.zip), [val](http://images.cocodataset.org/zips/val2017.zip), [test](http://images.cocodataset.org/zips/test2017.zip)) and [labels](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/coco2017labels-segments.zip). If you have previously used a different version of YOLO, we strongly recommend that you delete `train2017.cache` and `val2017.cache` files, and redownload [labels](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/coco2017labels-segments.zip) 
+nc: 43
+names: ["speed limit 20" ,"speed limit 30" ,"speed limit 50" ,"speed limit 60" ,"speed limit 70" ,"speed limit 80" ,"restriction ends 80" ,"speed limit 100" ,"speed limit 120" ,"no overtaking" ,"no overtaking" ,"priority at next intersection" ,"priority road" ,"give way" ,"stop" ,"no traffic both ways" ,"no trucks" ,"no entry" ,"danger" ,"bend left" ,"bend right" ,"bend" ,"uneven road" ,"slippery road" ,"road narrows" ,"construction" ,"traffic signal" ,"pedestrian crossing" ,"school crossing" ,"cycles crossing" ,"snow" ,"animals" ,"restriction ends" ,"go right" ,"go left" ,"go straight" ,"go right or straight" ,"go left or straight" ,"keep right" ,"keep left" ,"roundabout" ,"restriction ends (overtaking)" ,"restriction ends (overtaking (trucks))"]
+````
 
-Single GPU training
+Configure the general hyperparameters
 
-``` shell
-# train p5 models
-python train.py --workers 8 --device 0 --batch-size 32 --data data/coco.yaml --img 640 640 --cfg cfg/training/yolov7.yaml --weights '' --name yolov7 --hyp data/hyp.scratch.p5.yaml
-
-# train p6 models
-python train_aux.py --workers 8 --device 0 --batch-size 16 --data data/coco.yaml --img 1280 1280 --cfg cfg/training/yolov7-w6.yaml --weights '' --name yolov7-w6 --hyp data/hyp.scratch.p6.yaml
-```
-
-Multiple GPU training
-
-``` shell
-# train p5 models
-python -m torch.distributed.launch --nproc_per_node 4 --master_port 9527 train.py --workers 8 --device 0,1,2,3 --sync-bn --batch-size 128 --data data/coco.yaml --img 640 640 --cfg cfg/training/yolov7.yaml --weights '' --name yolov7 --hyp data/hyp.scratch.p5.yaml
-
-# train p6 models
-python -m torch.distributed.launch --nproc_per_node 8 --master_port 9527 train_aux.py --workers 8 --device 0,1,2,3,4,5,6,7 --sync-bn --batch-size 128 --data data/coco.yaml --img 1280 1280 --cfg cfg/training/yolov7-w6.yaml --weights '' --name yolov7-w6 --hyp data/hyp.scratch.p6.yaml
-```
-
-## Transfer learning
-
-[`yolov7_training.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7_training.pt) [`yolov7x_training.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7x_training.pt) [`yolov7-w6_training.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-w6_training.pt) [`yolov7-e6_training.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6_training.pt) [`yolov7-d6_training.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-d6_training.pt) [`yolov7-e6e_training.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6e_training.pt)
-
-Single GPU finetuning for custom dataset
-
-``` shell
-# finetune p5 models
-python train.py --workers 8 --device 0 --batch-size 32 --data data/custom.yaml --img 640 640 --cfg cfg/training/yolov7-custom.yaml --weights 'yolov7_training.pt' --name yolov7-custom --hyp data/hyp.scratch.custom.yaml
-
-# finetune p6 models
-python train_aux.py --workers 8 --device 0 --batch-size 16 --data data/custom.yaml --img 1280 1280 --cfg cfg/training/yolov7-w6-custom.yaml --weights 'yolov7-w6_training.pt' --name yolov7-w6-custom --hyp data/hyp.scratch.custom.yaml
-```
-
-## Re-parameterization
-
-See [reparameterization.ipynb](tools/reparameterization.ipynb)
-
-## Inference
-
-On video:
-``` shell
-python detect.py --weights yolov7.pt --conf 0.25 --img-size 640 --source yourvideo.mp4
-```
-
-On image:
-``` shell
-python detect.py --weights yolov7.pt --conf 0.25 --img-size 640 --source inference/images/horses.jpg
-```
-
-<div align="center">
-    <a href="./">
-        <img src="./figure/horses_prediction.jpg" width="59%"/>
-    </a>
-</div>
-
-
-## Export
-
-**Pytorch to CoreML (and inference on MacOS/iOS)** <a href="https://colab.research.google.com/github/WongKinYiu/yolov7/blob/main/tools/YOLOv7CoreML.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
-
-**Pytorch to ONNX with NMS (and inference)** <a href="https://colab.research.google.com/github/WongKinYiu/yolov7/blob/main/tools/YOLOv7onnx.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
-```shell
-python export.py --weights yolov7-tiny.pt --grid --end2end --simplify \
-        --topk-all 100 --iou-thres 0.65 --conf-thres 0.35 --img-size 640 640 --max-wh 640
-```
-
-**Pytorch to TensorRT with NMS (and inference)** <a href="https://colab.research.google.com/github/WongKinYiu/yolov7/blob/main/tools/YOLOv7trt.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
-
-```shell
-wget https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-tiny.pt
-python export.py --weights ./yolov7-tiny.pt --grid --end2end --simplify --topk-all 100 --iou-thres 0.65 --conf-thres 0.35 --img-size 640 640
-git clone https://github.com/Linaom1214/tensorrt-python.git
-python ./tensorrt-python/export.py -o yolov7-tiny.onnx -e yolov7-tiny-nms.trt -p fp16
-```
-
-**Pytorch to TensorRT another way** <a href="https://colab.research.google.com/gist/AlexeyAB/fcb47ae544cf284eb24d8ad8e880d45c/yolov7trtlinaom.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> <details><summary> <b>Expand</b> </summary>
-
-
-```shell
-wget https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-tiny.pt
-python export.py --weights yolov7-tiny.pt --grid --include-nms
-git clone https://github.com/Linaom1214/tensorrt-python.git
-python ./tensorrt-python/export.py -o yolov7-tiny.onnx -e yolov7-tiny-nms.trt -p fp16
-
-# Or use trtexec to convert ONNX to TensorRT engine
-/usr/src/tensorrt/bin/trtexec --onnx=yolov7-tiny.onnx --saveEngine=yolov7-tiny-nms.trt --fp16
-```
-
-</details>
-
-Tested with: Python 3.7.13, Pytorch 1.12.0+cu113
-
-## Pose estimation
-
-[`code`](https://github.com/WongKinYiu/yolov7/tree/pose) [`yolov7-w6-pose.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-w6-pose.pt)
-
-See [keypoint.ipynb](https://github.com/WongKinYiu/yolov7/blob/main/tools/keypoint.ipynb).
-
-<div align="center">
-    <a href="./">
-        <img src="./figure/pose.png" width="39%"/>
-    </a>
-</div>
-
-
-## Instance segmentation
-
-[`code`](https://github.com/WongKinYiu/yolov7/tree/mask) [`yolov7-mask.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-mask.pt)
-
-See [instance.ipynb](https://github.com/WongKinYiu/yolov7/blob/main/tools/instance.ipynb).
-
-<div align="center">
-    <a href="./">
-        <img src="./figure/mask.png" width="59%"/>
-    </a>
-</div>
-
-
-## Citation
-
-```
-@article{wang2022yolov7,
-  title={{YOLOv7}: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors},
-  author={Wang, Chien-Yao and Bochkovskiy, Alexey and Liao, Hong-Yuan Mark},
-  journal={arXiv preprint arXiv:2207.02696},
-  year={2022}
-}
+```yaml
+lr0: 0.01  # initial learning rate (SGD=1E-2, Adam=1E-3)
+lrf: 0.1  # final OneCycleLR learning rate (lr0 * lrf)
+momentum: 0.937  # SGD momentum/Adam beta1
+weight_decay: 0.0005  # optimizer weight decay 5e-4
+warmup_epochs: 3.0  # warmup epochs (fractions ok)
+warmup_momentum: 0.8  # warmup initial momentum
+warmup_bias_lr: 0.1  # warmup initial bias lr
+box: 0.05  # box loss gain
+cls: 0.3  # cls loss gain
+cls_pw: 1.0  # cls BCELoss positive_weight
+obj: 0.7  # obj loss gain (scale with pixels)
+obj_pw: 1.0  # obj BCELoss positive_weight
+iou_t: 0.20  # IoU training threshold
+anchor_t: 4.0  # anchor-multiple threshold
+# anchors: 3  # anchors per output layer (0 to ignore)
+fl_gamma: 0.0  # focal loss gamma (efficientDet default gamma=1.5)
+hsv_h: 0.015  # image HSV-Hue augmentation (fraction)
+hsv_s: 0.7  # image HSV-Saturation augmentation (fraction)
+hsv_v: 0.4  # image HSV-Value augmentation (fraction)
+degrees: 0.0  # image rotation (+/- deg)
+translate: 0.2  # image translation (+/- fraction)
+scale: 0.9  # image scale (+/- gain)
+shear: 0.0  # image shear (+/- deg)
+perspective: 0.0  # image perspective (+/- fraction), range 0-0.001
+flipud: 0.0  # image flip up-down (probability)
+fliplr: 0.5  # image flip left-right (probability)
+mosaic: 1.0  # image mosaic (probability)
+mixup: 0.15  # image mixup (probability)
+copy_paste: 0.0  # image copy paste (probability)
+paste_in: 0.15  # image copy paste (probability), use 0 for faster training
+loss_ota: 1 # use ComputeLossOTA, use 0 for faster training
 ```
 
 
-## Teaser
+## Metrics
 
-Yolov7-semantic & YOLOv7-panoptic & YOLOv7-caption
-
-<div align="center">
-    <a href="./">
-        <img src="./figure/tennis.jpg" width="24%"/>
-    </a>
-    <a href="./">
-        <img src="./figure/tennis_semantic.jpg" width="24%"/>
-    </a>
-    <a href="./">
-        <img src="./figure/tennis_panoptic.png" width="24%"/>
-    </a>
-    <a href="./">
-        <img src="./figure/tennis_caption.png" width="24%"/>
-    </a>
-</div>
+### Precision
+![Precision](./precision.png)
 
 
-## Acknowledgements
+### Recall
+![Recall](./recall.png)
 
-<details><summary> <b>Expand</b> </summary>
 
-* [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet)
-* [https://github.com/WongKinYiu/yolor](https://github.com/WongKinYiu/yolor)
-* [https://github.com/WongKinYiu/PyTorch_YOLOv4](https://github.com/WongKinYiu/PyTorch_YOLOv4)
-* [https://github.com/WongKinYiu/ScaledYOLOv4](https://github.com/WongKinYiu/ScaledYOLOv4)
-* [https://github.com/Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
-* [https://github.com/ultralytics/yolov3](https://github.com/ultralytics/yolov3)
-* [https://github.com/ultralytics/yolov5](https://github.com/ultralytics/yolov5)
-* [https://github.com/DingXiaoH/RepVGG](https://github.com/DingXiaoH/RepVGG)
-* [https://github.com/JUGGHM/OREPA_CVPR2022](https://github.com/JUGGHM/OREPA_CVPR2022)
-* [https://github.com/TexasInstruments/edgeai-yolov5/tree/yolo-pose](https://github.com/TexasInstruments/edgeai-yolov5/tree/yolo-pose)
+### mAP 0.5
+![mAP 0.5](./mAP_0.5.png)
 
-</details>
+
+### mAP 0.5:0.95
+![mAP 0.5:0.95](./mAP_0.5:0.95.png)
+
+### Box loss
+![Box loss](./box_loss.png
+
+
+### Cls loss
+![Cls loss](./cls_loss.png
+
+
+### Obj loss
+![Obj loss](./obj_loss.png
